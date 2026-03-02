@@ -14,43 +14,87 @@ type Product = {
 
 export default function ProductDetailsPage() {
   const router = useRouter();
-  const { id } = router.query;
-
   const { addToCart } = useCart();
+
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!router.isReady) return;
 
-    fetch(`https://fakestoreapi.com/products/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
+    const { id } = router.query;
+
+    if (!id || Array.isArray(id)) {
+      setError("Invalid product ID.");
+      setLoading(false);
+      return;
+    }
+
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const res = await fetch(
+          `https://fakestoreapi.com/products/${id}`
+        );
+
+        if (!res.ok) {
+          throw new Error("Product not found.");
+        }
+
+        const data: Product = await res.json();
+
+        if (!data || !data.id) {
+          throw new Error("Invalid product data.");
+        }
+
         setProduct(data);
+      } catch (err: any) {
+        setError(err.message || "Something went wrong.");
+        setProduct(null);
+      } finally {
         setLoading(false);
-      });
-  }, [id]);
+      }
+    };
 
+    fetchProduct();
+  }, [router.isReady, router.query]);
+
+  // Loading State
   if (loading) {
     return (
-      <div className="container-custom py-20 text-center">
-        <p className="text-lg">Loading product...</p>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-lg font-medium text-gray-600">
+          Loading product details...
+        </p>
       </div>
     );
   }
 
-  if (!product) {
+  // Error State
+  if (error) {
     return (
-      <div className="container-custom py-20 text-center">
-        <p>Product not found.</p>
+      <div className="flex flex-col justify-center items-center min-h-screen space-y-4">
+        <p className="text-red-600 font-semibold">{error}</p>
+        <Link
+          href="/products"
+          className="text-blue-600 underline hover:text-blue-800"
+        >
+          ← Back to Products
+        </Link>
       </div>
     );
   }
+
+  if (!product) return null;
 
   return (
-    <div className="container-custom py-12">
+    <div className="container mx-auto px-6 py-16">
       <div className="grid md:grid-cols-2 gap-16 bg-white shadow-lg rounded-2xl p-10">
 
+        {/* Image Section */}
         <div className="flex justify-center items-center">
           <img
             src={product.image}
@@ -59,12 +103,13 @@ export default function ProductDetailsPage() {
           />
         </div>
 
+        {/* Details Section */}
         <div className="flex flex-col">
           <span className="text-sm text-gray-500 uppercase mb-2">
             {product.category}
           </span>
 
-          <h1 className="text-4xl font-bold text-black mb-4">
+          <h1 className="text-4xl font-bold text-gray-800 mb-6">
             {product.title}
           </h1>
 
@@ -72,7 +117,7 @@ export default function ProductDetailsPage() {
             ${product.price}
           </p>
 
-          <p className="text-gray-600 leading-relaxed mb-8">
+          <p className="text-gray-600 leading-relaxed mb-10">
             {product.description}
           </p>
 
@@ -84,10 +129,11 @@ export default function ProductDetailsPage() {
               Add to Cart
             </button>
 
-            <Link href="/cart">
-              <button className="border border-yellow-300 px-8 py-3 rounded-xl hover:bg-yellow-50 transition text-gray-700">
-                Go to Cart
-              </button>
+            <Link
+              href="/cart"
+              className="border border-gray-300 px-8 py-3 rounded-xl hover:bg-gray-100 transition text-gray-700"
+            >
+              Go to Cart
             </Link>
           </div>
         </div>
